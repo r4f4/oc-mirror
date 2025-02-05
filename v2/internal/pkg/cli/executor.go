@@ -511,6 +511,8 @@ func (o *ExecutorSchema) Complete(args []string) error {
 func (o *ExecutorSchema) Run(cmd *cobra.Command, args []string) error {
 	var err error
 
+	defer o.closeAll()
+
 	startTime := time.Now()
 	switch {
 	case o.Opts.IsMirrorToDisk():
@@ -526,13 +528,7 @@ func (o *ExecutorSchema) Run(cmd *cobra.Command, args []string) error {
 	o.Log.Info("mirror time     : %v", execTime)
 	o.Log.Info(emoji.WavingHandSign + " Goodbye, thank you for using oc-mirror")
 
-	if err != nil {
-		o.closeAll()
-		return err
-	}
-
-	defer o.closeAll()
-	return nil
+	return err
 }
 
 // setupLocalRegistryConfig - private function to parse registry config
