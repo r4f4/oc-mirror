@@ -19,9 +19,7 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
-var (
-	copiedImages v2alpha1.CollectorSchema
-
+const (
 	errMsgHeader = "%ssome errors occurred during the mirroring"
 	errMsg       = errMsgHeader + ".\n" +
 		"\t Please review %s/%s for a list of mirroring errors.\n" +
@@ -47,10 +45,6 @@ type GoroutineResult struct {
 // Worker - the main batch processor
 func (o *ChannelConcurrentBatch) Worker(ctx context.Context, collectorSchema v2alpha1.CollectorSchema, opts mirror.CopyOptions) (v2alpha1.CollectorSchema, error) {
 	startTime := time.Now()
-
-	copiedImages = v2alpha1.CollectorSchema{
-		AllImages: []v2alpha1.CopyImageSchema{},
-	}
 
 	var errArray []mirrorErrorSchema
 
@@ -162,6 +156,10 @@ func (o *ChannelConcurrentBatch) Worker(ctx context.Context, collectorSchema v2a
 	overallProgress := newOverallProgress(p, total)
 
 	go runOverallProgress(overallProgress, cancelCtx, progressCh)
+
+	copiedImages := v2alpha1.CollectorSchema{
+		AllImages: []v2alpha1.CopyImageSchema{},
+	}
 
 	completed := 0
 	for completed < len(collectorSchema.AllImages) {
