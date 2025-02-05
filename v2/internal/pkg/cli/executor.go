@@ -511,6 +511,7 @@ func (o *ExecutorSchema) Complete(args []string) error {
 func (o *ExecutorSchema) Run(cmd *cobra.Command, args []string) error {
 	var err error
 
+	startTime := time.Now()
 	switch {
 	case o.Opts.IsMirrorToDisk():
 		err = o.RunMirrorToDisk(cmd, args)
@@ -520,6 +521,9 @@ func (o *ExecutorSchema) Run(cmd *cobra.Command, args []string) error {
 		err = o.RunMirrorToMirror(cmd, args)
 	}
 
+	endTime := time.Now()
+	execTime := endTime.Sub(startTime)
+	o.Log.Info("mirror time     : %v", execTime)
 	o.Log.Info(emoji.WavingHandSign + " Goodbye, thank you for using oc-mirror")
 
 	if err != nil {
@@ -766,7 +770,6 @@ func (o *ExecutorSchema) setupWorkingDir() error {
 
 // RunMirrorToDisk - execute the mirror to disk functionality
 func (o *ExecutorSchema) RunMirrorToDisk(cmd *cobra.Command, args []string) error {
-	startTime := time.Now()
 	var batchError error
 	o.Log.Debug(startMessage, o.Opts.Global.Port)
 	go startLocalRegistry(&o.LocalStorageService, o.localStorageInterruptChannel)
@@ -824,10 +827,6 @@ func (o *ExecutorSchema) RunMirrorToDisk(cmd *cobra.Command, args []string) erro
 		}
 	}
 
-	endTime := time.Now()
-	execTime := endTime.Sub(startTime)
-	o.Log.Info("mirror time     : %v", execTime)
-
 	if err != nil {
 		return err
 	}
@@ -839,7 +838,6 @@ func (o *ExecutorSchema) RunMirrorToDisk(cmd *cobra.Command, args []string) erro
 
 // RunMirrorToMirror - execute the mirror to mirror functionality
 func (o *ExecutorSchema) RunMirrorToMirror(cmd *cobra.Command, args []string) error {
-	startTime := time.Now()
 	var batchError error
 
 	// OCPBUGS-37948 + CLID-196: local cache should be started during mirror to mirror as well:
@@ -922,9 +920,6 @@ func (o *ExecutorSchema) RunMirrorToMirror(cmd *cobra.Command, args []string) er
 		}
 	}
 
-	endTime := time.Now()
-	execTime := endTime.Sub(startTime)
-	o.Log.Info("mirror time     : %v", execTime)
 	if err != nil {
 		return err
 	}
@@ -936,8 +931,6 @@ func (o *ExecutorSchema) RunMirrorToMirror(cmd *cobra.Command, args []string) er
 
 // RunDiskToMirror execute the disk to mirror functionality
 func (o *ExecutorSchema) RunDiskToMirror(cmd *cobra.Command, args []string) error {
-	startTime := time.Now()
-
 	var batchError error
 	// extract the archive
 	err := o.MirrorUnArchiver.Unarchive()
@@ -1023,10 +1016,6 @@ func (o *ExecutorSchema) RunDiskToMirror(cmd *cobra.Command, args []string) erro
 			return err
 		}
 	}
-
-	endTime := time.Now()
-	execTime := endTime.Sub(startTime)
-	o.Log.Info("mirror time     : %v", execTime)
 
 	if err != nil {
 		return err
