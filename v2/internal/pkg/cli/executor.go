@@ -225,12 +225,12 @@ func NewMirrorCmd(log clog.PluggableLoggerInterface) *cobra.Command {
 			err := ex.Validate(args)
 			if err != nil {
 				log.Error("%v ", err)
-				os.Exit(1)
+				os.Exit(int(genericErrorCode))
 			}
 			err = ex.Complete(args)
 			if err != nil {
 				log.Error(" %v ", err)
-				os.Exit(1)
+				os.Exit(int(genericErrorCode))
 			}
 			defer ex.logFile.Close()
 			cmd.SetOutput(ex.logFile)
@@ -239,13 +239,17 @@ func NewMirrorCmd(log clog.PluggableLoggerInterface) *cobra.Command {
 			err = ex.setupLocalStorage()
 			if err != nil {
 				log.Error(" %v ", err)
-				os.Exit(1)
+				os.Exit(int(genericErrorCode))
 			}
 
 			err = ex.Run(cmd, args)
 			if err != nil {
+				if e, ok := err.(*ExecutorSchemaError); ok {
+					log.Error("%v ", e)
+					os.Exit(int(e.Code()))
+				}
 				log.Error("%v ", err)
-				os.Exit(1)
+				os.Exit(int(genericErrorCode))
 			}
 		},
 	}
@@ -784,7 +788,7 @@ func (o *ExecutorSchema) RunMirrorToDisk(cmd *cobra.Command, args []string) erro
 	}
 
 	// call the batch worker
-	copiedSchema, batchError := o.Batch.Worker(cmd.Context(), collectorSchema, *o.Opts)
+	copiedSchema, batchError := o.runWorker(cmd.Context(), &collectorSchema)
 
 	// OCPBUGS-45580: add the rebuilt catalog image to the collectorSchema so that
 	// it also gets added to the archive. When using the GCRCatalogBuilder implementation,
@@ -808,10 +812,7 @@ func (o *ExecutorSchema) RunMirrorToDisk(cmd *cobra.Command, args []string) erro
 		return err
 	}
 
-	if batchError != nil {
-		o.Log.Warn("%v", batchError)
-	}
-	return nil
+	return batchError
 }
 
 // RunMirrorToMirror - execute the mirror to mirror functionality
@@ -843,7 +844,7 @@ func (o *ExecutorSchema) RunMirrorToMirror(cmd *cobra.Command, args []string) er
 	}
 
 	// call the batch worker
-	copiedSchema, batchError := o.Batch.Worker(cmd.Context(), collectorSchema, *o.Opts)
+	copiedSchema, batchError := o.runWorker(cmd.Context(), &collectorSchema)
 
 	// create IDMS/ITMS
 	forceRepositoryScope := o.Opts.Global.MaxNestedPaths > 0
@@ -880,10 +881,7 @@ func (o *ExecutorSchema) RunMirrorToMirror(cmd *cobra.Command, args []string) er
 		}
 	}
 
-	if batchError != nil {
-		o.Log.Warn("%v", batchError)
-	}
-	return nil
+	return batchError
 }
 
 // RunDiskToMirror execute the disk to mirror functionality
@@ -917,7 +915,7 @@ func (o *ExecutorSchema) RunDiskToMirror(cmd *cobra.Command, args []string) erro
 	}
 
 	// call the batch worker
-	copiedSchema, batchError := o.Batch.Worker(cmd.Context(), collectorSchema, *o.Opts)
+	copiedSchema, batchError := o.runWorker(cmd.Context(), &collectorSchema)
 
 	// create IDMS/ITMS
 	forceRepositoryScope := o.Opts.Global.MaxNestedPaths > 0
@@ -955,10 +953,7 @@ func (o *ExecutorSchema) RunDiskToMirror(cmd *cobra.Command, args []string) erro
 		}
 	}
 
-	if batchError != nil {
-		o.Log.Warn("%v", batchError)
-	}
-	return nil
+	return batchError
 }
 
 // setupLogsLevelAndDir - private utility to setup log
@@ -1136,7 +1131,27 @@ func (o *ExecutorSchema) RebuildCatalogs(ctx context.Context, operatorImgs v2alp
 		}
 	}
 	return nil
+}
 
+func (o *ExecutorSchema) runWorker(ctx context.Context, collectorSchema *v2alpha1.CollectorSchema) (v2alpha1.CollectorSchema, error) {
+	copiedImages, batchError := o.Batch.Worker(ctx, *collectorSchema, *o.Opts)
+	if batchError != nil {
+		retCode := uint8(0)
+		if copiedImages.TotalReleaseImages < collectorSchema.TotalReleaseImages {
+			retCode |= releaseImageErrorCode
+		}
+		if copiedImages.TotalOperatorImages < collectorSchema.TotalOperatorImages {
+			retCode |= operatorImageErrorCode
+		}
+		if copiedImages.TotalHelmImages < collectorSchema.TotalHelmImages {
+			retCode |= helmImageErrorCode
+		}
+		if copiedImages.TotalAdditionalImages < collectorSchema.TotalAdditionalImages {
+			retCode |= additionalImageErrorCode
+		}
+		return copiedImages, NewExecutorSchemaError(batchError, retCode)
+	}
+	return copiedImages, batchError
 }
 
 // closeAll - utility to close any open files
