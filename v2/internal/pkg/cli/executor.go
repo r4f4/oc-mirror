@@ -787,19 +787,8 @@ func (o *ExecutorSchema) RunMirrorToDisk(cmd *cobra.Command, args []string) erro
 		return err
 	}
 
-	var batchError error
-	var copiedSchema v2alpha1.CollectorSchema
 	// call the batch worker
-	if cs, err := o.Batch.Worker(cmd.Context(), collectorSchema, *o.Opts); err != nil {
-		if _, ok := err.(batch.UnsafeError); ok {
-			return err
-		} else {
-			batchError = err
-			copiedSchema = cs
-		}
-	} else {
-		copiedSchema = cs
-	}
+	copiedSchema, batchError := o.Batch.Worker(cmd.Context(), collectorSchema, *o.Opts)
 
 	// OCPBUGS-45580: add the rebuilt catalog image to the collectorSchema so that
 	// it also gets added to the archive. When using the GCRCatalogBuilder implementation,
@@ -857,19 +846,8 @@ func (o *ExecutorSchema) RunMirrorToMirror(cmd *cobra.Command, args []string) er
 		return err
 	}
 
-	var batchError error
-	var copiedSchema v2alpha1.CollectorSchema
 	// call the batch worker
-	if cs, err := o.Batch.Worker(cmd.Context(), collectorSchema, *o.Opts); err != nil {
-		if _, ok := err.(batch.UnsafeError); ok {
-			return err
-		} else {
-			batchError = err
-			copiedSchema = cs
-		}
-	} else {
-		copiedSchema = cs
-	}
+	copiedSchema, batchError := o.Batch.Worker(cmd.Context(), collectorSchema, *o.Opts)
 
 	// create IDMS/ITMS
 	forceRepositoryScope := o.Opts.Global.MaxNestedPaths > 0
@@ -942,19 +920,8 @@ func (o *ExecutorSchema) RunDiskToMirror(cmd *cobra.Command, args []string) erro
 		return o.DryRun(cmd.Context(), collectorSchema.AllImages)
 	}
 
-	var batchError error
-	var copiedSchema v2alpha1.CollectorSchema
 	// call the batch worker
-	if cs, err := o.Batch.Worker(cmd.Context(), collectorSchema, *o.Opts); err != nil {
-		if _, ok := err.(batch.UnsafeError); ok {
-			return err
-		} else {
-			batchError = err
-			copiedSchema = cs
-		}
-	} else {
-		copiedSchema = cs
-	}
+	copiedSchema, batchError := o.Batch.Worker(cmd.Context(), collectorSchema, *o.Opts)
 
 	// create IDMS/ITMS
 	forceRepositoryScope := o.Opts.Global.MaxNestedPaths > 0
