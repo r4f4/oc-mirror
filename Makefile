@@ -62,13 +62,16 @@ tidy:
 	$(GO) mod tidy
 	make -C v1 tidy
 
-sanity: tidy format vet
+sanity: tidy format vet generate
 	make -C v1 sanity
 	git diff --exit-code
 .PHONY: sanity
 
 format: verify-gofmt
 	make -C v1 verify-gofmt
+
+generate:
+	$(GO) generate ./internal/pkg/...
 
 cover:
 	$(GO) tool cover -html=tests/results/cover.out -o tests/results/cover.html
